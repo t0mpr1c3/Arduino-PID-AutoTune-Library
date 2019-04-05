@@ -16,7 +16,7 @@
 // as reported on http://www.mstarlabs.com/control/znrule.html
 
 // order must be match enumerated type for auto tune methods
-PROGMEM Tuning tuningRule[PID_ATune::NO_OVERSHOOT_PID + 1] =
+const PROGMEM Tuning tuningRule[PID_ATune::NO_OVERSHOOT_PID + 1] =
 {  
   { {  44, 24,   0 } },  // ZIEGLER_NICHOLS_PI
   { {  34, 40, 160 } },  // ZIEGLER_NICHOLS_PID
