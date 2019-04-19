@@ -12,17 +12,17 @@
 // requires open Serial port
 #undef AUTOTUNE_DEBUG
 
-#define USE_SIMULATION
+#undef USE_SIMULATION
 
 // defining this option implements relay bias
 // this is useful to adjust the relay output values
 // during the auto tuning to recover symmetric
-// oscillations 
+// oscillations
 // this can compensate for load disturbance
 // and equivalent signals arising from nonlinear
-// or non-stationary processes 
-// any improvement in the tunings seems quite modest 
-// but sometimes unbalanced oscillations can be 
+// or non-stationary processes
+// any improvement in the tunings seems quite modest
+// but sometimes unbalanced oscillations can be
 // persuaded to converge where they might not 
 // otherwise have done so
 #undef AUTOTUNE_RELAY_BIAS
@@ -46,13 +46,13 @@
 struct Tuning
 {
   byte _divisor[3];
-  
+
   bool PI_controller()
   {
     return pgm_read_byte_near(&_divisor[2]) == 0;
   }
-  
-  double divisor(byte index)  
+
+  double divisor(byte index)
   {
     return (double)pgm_read_byte_near(&_divisor[index]) * 0.05;
   }
@@ -62,13 +62,13 @@ class PID_ATune
 {
 
 public:
-  
+
   // constants ***********************************************************************************
 
   // auto tune method
-  enum 
+  enum
   {
-    ZIEGLER_NICHOLS_PI = 0,	
+    ZIEGLER_NICHOLS_PI = 0,
     ZIEGLER_NICHOLS_PID = 1,
     TYREUS_LUYBEN_PI,
     TYREUS_LUYBEN_PID,
@@ -91,14 +91,14 @@ public:
   // auto tuner state
   enum AutoTunerState
   {
-    AUTOTUNER_OFF = 0, 
+    AUTOTUNER_OFF = 0,
     STEADY_STATE_AT_BASELINE = 1,
     STEADY_STATE_AFTER_STEP_UP = 2,
     RELAY_STEP_UP = 4,
     RELAY_STEP_DOWN = 8,
     CONVERGED = 16,
     FAILED = 128
-  }; 
+  };
 
   // tuning rule divisor
   enum
@@ -109,18 +109,18 @@ public:
   };
 
   // irrational constants
-  static const double CONST_PI          = 3.14159265358979323846;
-  static const double CONST_SQRT2_DIV_2 = 0.70710678118654752440;
+  static constexpr double CONST_PI          = 3.14159265358979323846;
+  static constexpr double CONST_SQRT2_DIV_2 = 0.70710678118654752440;
 
   // commonly used methods ***********************************************************************
   PID_ATune(double*, double*);          // * Constructor.  links the Autotune to a given PID
-  bool Runtime();                       // * Similar to the PID Compute function, 
+  bool Runtime();                       // * Similar to the PID Compute function,
                                         //   returns true when done, otherwise returns false
-  void Cancel();                        // * Stops the AutoTune 
+  void Cancel();                        // * Stops the AutoTune
 
-  void SetOutputStep(double);           // * how far above and below the starting value will 
-                                        //   the output step?   
-  double GetOutputStep();               // 
+  void SetOutputStep(double);           // * how far above and below the starting value will
+                                        //   the output step?
+  double GetOutputStep();               //
 
   void SetControlType(byte);            // * Determines tuning algorithm
   byte GetControlType();                // * Returns tuning algorithm
@@ -128,19 +128,19 @@ public:
   void SetLookbackSec(int);             // * how far back are we looking to identify peaks
   int GetLookbackSec();                 //
 
-  void SetNoiseBand(double);            // * the autotune will ignore signal chatter smaller 
+  void SetNoiseBand(double);            // * the autotune will ignore signal chatter smaller
                                         //   than this value
   double GetNoiseBand();                //   this should be accurately set
 
   double GetKp();                       // * once autotune is complete, these functions contain the
-  double GetKi();                       //   computed tuning parameters.  
+  double GetKi();                       //   computed tuning parameters.
   double GetKd();                       //
 
 
 private:
 
   double processValueOffset(double,     // * returns an estimate of the process value offset
-      double);                          //   as a proportion of the amplitude                                        
+      double);                          //   as a proportion of the amplitude
 
   double *input;
   double *output;
@@ -171,13 +171,13 @@ private:
   double fastArcTan(double);
   double newWorkingNoiseBand;
   double K_process;
-  
-#if defined AUTOTUNE_RELAY_BIAS  
+
+#if defined AUTOTUNE_RELAY_BIAS
   double relayBias;
   unsigned long lastStepTime[5];        // * step time, most recent in array element 0
   double sumInputSinceLastStep[5];      // * integrated process values, most recent in array element 0
   byte stepCount;
-#endif  
+#endif
 
 };
 
