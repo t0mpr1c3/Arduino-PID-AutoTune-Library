@@ -221,7 +221,7 @@ bool PID_ATune::Runtime()
     lastStepTime[0] = now;
     sumInputSinceLastStep[0] = 0.0;
     
-#if defined (AUTOTUNE_DEBUG
+#if defined (AUTOTUNE_DEBUG)
     for (byte i = 1; i < (stepCount > 4 ? 5 : stepCount); i++)
     {
       Serial.print(F("step time "));

@@ -109,8 +109,8 @@ public:
   };
 
   // irrational constants
-  static const double CONST_PI          = 3.14159265358979323846;
-  static const double CONST_SQRT2_DIV_2 = 0.70710678118654752440;
+  static constexpr double CONST_PI          = 3.14159265358979323846;
+  static constexpr double CONST_SQRT2_DIV_2 = 0.70710678118654752440;
 
   // commonly used methods ***********************************************************************
   PID_ATune(double*, double*);          // * Constructor.  links the Autotune to a given PID
