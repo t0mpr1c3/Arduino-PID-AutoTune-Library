@@ -17,28 +17,8 @@
 
 // order must be match enumerated type for auto tune methods
 
-CmdMessenger cmdMessenger = CmdMessenger(Serial,',',';','/');
-enum
-{
-  // Commands
-  cmdAck         , // Command to acknowledge that cmd was received
-  logger,
-  startHatch,
-  stopHatch,
-  runManual,
-  startAutoTune,
-  getPID,
-  setPID,
-  setTempOutput,
-  status,
-  logToInflux,
-  setTempSetpoint,
-  getTempSetpoint,
-  setHumSetpoint,
-  getHumSetpoint
 
-};
-
+cmdMessenger = CmdMessenger(Serial,',',';','/');
 
 const PROGMEM Tuning tuningRule[PID_ATune::NO_OVERSHOOT_PID + 1] =
 {
