@@ -8,11 +8,15 @@
 #include "WProgram.h"
 #endif
 
+#include "CmdMessenger.h"
+#define AUTOTUNE_PYCMD_INFO
+
 // verbose debug option
 // requires open Serial port
 #undef AUTOTUNE_DEBUG
 
 #undef USE_SIMULATION
+
 
 // defining this option implements relay bias
 // this is useful to adjust the relay output values
@@ -23,7 +27,7 @@
 // or non-stationary processes
 // any improvement in the tunings seems quite modest
 // but sometimes unbalanced oscillations can be
-// persuaded to converge where they might not 
+// persuaded to converge where they might not
 // otherwise have done so
 #undef AUTOTUNE_RELAY_BIAS
 
