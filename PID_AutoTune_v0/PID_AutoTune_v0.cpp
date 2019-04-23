@@ -160,6 +160,7 @@ tmpMess += F("INFO: Autotune: asymmetry ");
 tmpMess += String(asymmetry,6);
 cmdMessenger.sendCmd(logger,tmpMess);
 #endif
+
 #if defined (AUTOTUNE_DEBUG) || defined (USE_SIMULATION)
         Serial.print(F("asymmetry "));
         Serial.println(asymmetry);
@@ -941,6 +942,13 @@ byte PID_ATune::GetControlType()
 void PID_ATune::SetNoiseBand(double band)
 {
   noiseBand = band;
+  #if defined (AUTOTUNE_PYCMD_INFO)
+  Serial.println("IN set noiseBand");
+  String tmpMess="";
+  tmpMess +=F("INFO: In noiseband noisband");
+  tmpMess += String(noisBand);
+  cmdMessenger.sendCmd(logger,tmpMess);
+  #endif
 }
 
 double PID_ATune::GetNoiseBand()
