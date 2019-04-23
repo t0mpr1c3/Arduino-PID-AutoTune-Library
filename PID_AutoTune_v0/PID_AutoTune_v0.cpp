@@ -328,7 +328,7 @@ tmpMess += String(refVal,6);
 tmpMess += F(" setpint ");
 tmpMess += String(setpoint,6);
 tmpMess += F(" output ");
-tmpMess += String(*outpoint,6);
+tmpMess += String(*output,6);
 tmpMess += F(" state ");
 tmpMess += String(state,6);
 cmdMessenger.sendCmd(logger,tmpMess);
