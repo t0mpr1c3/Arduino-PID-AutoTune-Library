@@ -18,7 +18,6 @@
 // order must be match enumerated type for auto tune methods
 
 
-cmdMessenger = CmdMessenger(Serial,',',';','/');
 
 const PROGMEM Tuning tuningRule[PID_ATune::NO_OVERSHOOT_PID + 1] =
 {

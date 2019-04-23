@@ -70,7 +70,7 @@ public:
   // constants ***********************************************************************************
 
 //Pycommand
-
+CmdMessenger cmdMessenger = CmdMessenger(Serial,',',';','/');
 enum
 {
   // Commands
@@ -141,7 +141,6 @@ enum
   static constexpr double CONST_SQRT2_DIV_2 = 0.70710678118654752440;
 
   // commonly used methods ***********************************************************************
-  extern CmdMessenger cmdMessenger;
   PID_ATune(double*, double*);          // * Constructor.  links the Autotune to a given PID
   bool Runtime();                       // * Similar to the PID Compute function,
                                         //   returns true when done, otherwise returns false
