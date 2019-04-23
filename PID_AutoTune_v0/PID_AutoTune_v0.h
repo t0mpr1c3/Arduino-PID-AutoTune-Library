@@ -69,6 +69,30 @@ public:
 
   // constants ***********************************************************************************
 
+//Pycommand
+
+enum
+{
+  // Commands
+  cmdAck         , // Command to acknowledge that cmd was received
+  logger,
+  startHatch,
+  stopHatch,
+  runManual,
+  startAutoTune,
+  getPID,
+  setPID,
+  setTempOutput,
+  status,
+  logToInflux,
+  setTempSetpoint,
+  getTempSetpoint,
+  setHumSetpoint,
+  getHumSetpoint
+
+};
+
+
   // auto tune method
   enum
   {
@@ -117,6 +141,7 @@ public:
   static constexpr double CONST_SQRT2_DIV_2 = 0.70710678118654752440;
 
   // commonly used methods ***********************************************************************
+  CmdMessenger cmdMessenger = CmdMessenger(Serial,',',';','/');
   PID_ATune(double*, double*);          // * Constructor.  links the Autotune to a given PID
   bool Runtime();                       // * Similar to the PID Compute function,
                                         //   returns true when done, otherwise returns false
