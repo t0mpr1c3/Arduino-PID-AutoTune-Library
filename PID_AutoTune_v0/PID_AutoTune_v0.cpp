@@ -10,14 +10,17 @@
 // can lack robustness especially for lag dominated processes
 
 // source for Pessen Integral, Some Overshoot, and No Overshoot rules:
-// "Rule-Based Autotuning Based on Frequency Domain Identification" 
+// "Rule-Based Autotuning Based on Frequency Domain Identification"
 // by Anthony S. McCormack and Keith R. Godfrey
 // IEEE Transactions on Control Systems Technology, vol 6 no 1, January 1998.
 // as reported on http://www.mstarlabs.com/control/znrule.html
 
 // order must be match enumerated type for auto tune methods
-PROGMEM Tuning tuningRule[PID_ATune::NO_OVERSHOOT_PID + 1] =
-{  
+
+
+
+const PROGMEM Tuning tuningRule[PID_ATune::NO_OVERSHOOT_PID + 1] =
+{
   { {  44, 24,   0 } },  // ZIEGLER_NICHOLS_PI
   { {  34, 40, 160 } },  // ZIEGLER_NICHOLS_PID
   { {  64,  9,   0 } },  // TYREUS_LUYBEN_PI
@@ -51,13 +54,13 @@ double inline PID_ATune::fastArcTan(double x)
 {
   // source: “Efficient approximations for the arctangent function”, Rajan, S. Sichun Wang Inkol, R. Joyal, A., May 2006
   //return CONST_PI / 4.0 * x - x * (abs(x) - 1.0) * (0.2447 + 0.0663 * abs(x));
-  
+
   // source: "Understanding Digital Signal Processing", 2nd Ed, Richard G. Lyons, eq. 13-107
   return x / (1.0 + 0.28125 * pow(x, 2));
 }
 
 double PID_ATune::calculatePhaseLag(double inducedAmplitude)
-{ 
+{
   // calculate phase lag
   // NB hysteresis = 2 * noiseBand;
   double ratio = 2.0 * workingNoiseBand / inducedAmplitude;
@@ -78,7 +81,7 @@ bool PID_ATune::Runtime()
   unsigned long now = millis();
 
   if (state == AUTOTUNER_OFF)
-  { 
+  {
     // initialize working variables the first time around
     peakType = NOT_A_PEAK;
     inputCount = 0;
@@ -87,16 +90,16 @@ bool PID_ATune::Runtime()
     outputStart = *output;
     lastPeakTime[0] = now;
     workingNoiseBand = noiseBand;
-    newWorkingNoiseBand = noiseBand;  
+    newWorkingNoiseBand = noiseBand;
     workingOstep = oStep;
-    
-#if defined (AUTOTUNE_RELAY_BIAS) 
+
+#if defined (AUTOTUNE_RELAY_BIAS)
     relayBias = 0.0;
-    stepCount = 0;   
+    stepCount = 0;
     lastStepTime[0] = now;
     sumInputSinceLastStep[0] = 0.0;
-#endif    
-    
+#endif
+
     // move to new state
     if (controlType == AMIGOF_PI)
     {
@@ -109,7 +112,7 @@ bool PID_ATune::Runtime()
   }
 
   // otherwise check ready for new input
-  else if ((now - lastTime) < sampleTime) 
+  else if ((now - lastTime) < sampleTime)
   {
     return false;
   }
@@ -118,13 +121,13 @@ bool PID_ATune::Runtime()
   lastTime = now;
   double refVal = *input;
 
-#if defined (AUTOTUNE_RELAY_BIAS) 
+#if defined (AUTOTUNE_RELAY_BIAS)
   // used to calculate relay bias
   sumInputSinceLastStep[0] += refVal;
-#endif  
+#endif
 
   // local flag variable
-  bool justChanged = false; 
+  bool justChanged = false;
 
   // check input and change relay state if necessary
   if ((state == RELAY_STEP_UP) && (refVal > setpoint + workingNoiseBand))
@@ -140,7 +143,7 @@ bool PID_ATune::Runtime()
   if (justChanged)
   {
     workingNoiseBand = newWorkingNoiseBand;
-    
+
 #if defined (AUTOTUNE_RELAY_BIAS)
     // check symmetry of oscillation
     // and introduce relay bias if necessary
@@ -152,7 +155,15 @@ bool PID_ATune::Runtime()
       {
         double asymmetry = (avgStep1 > avgStep2) ?
                            (avgStep1 - avgStep2) / avgStep1 : (avgStep2 - avgStep1) / avgStep2;
-                           
+
+
+#if defined (AUTOTUNE_PYCMD_INFO)
+String tmpMess="";
+tmpMess += F("DEBUG: Autotune: asymmetry ");
+tmpMess += String(asymmetry,6);
+cmdMessenger.sendCmd(logger,tmpMess);
+#endif
+
 #if defined (AUTOTUNE_DEBUG) || defined (USE_SIMULATION)
         Serial.print(F("asymmetry "));
         Serial.println(asymmetry);
@@ -171,7 +182,7 @@ bool PID_ATune::Runtime()
           {
             deltaRelayBias = -deltaRelayBias;
           }
-          
+
           if (abs(deltaRelayBias) > workingOstep * AUTOTUNE_STEP_ASYMMETRY_TOLERANCE)
           {
             // change is large enough to bother with
@@ -179,7 +190,7 @@ bool PID_ATune::Runtime()
 
             /*
             // adjust step height with respect to output limits
-            // commented out because the auto tuner does not 
+            // commented out because the auto tuner does not
             // necessarily know what the output limits are
             double relayHigh = outputStart + workingOstep + relayBias;
             double relayLow  = outputStart - workingOstep + relayBias;
@@ -195,13 +206,21 @@ bool PID_ATune::Runtime()
             relayBias = relayHigh - outputStart - workingOstep;
             */
 
+
 #if defined (AUTOTUNE_DEBUG) || defined (USE_SIMULATION)
             Serial.print(F("deltaRelayBias "));
             Serial.println(deltaRelayBias);
             Serial.print(F("relayBias "));
             Serial.println(relayBias);
 #endif
-
+#if defined (AUTOTUNE_PYCMD_INFO)
+String tmpMess="";
+tmpMess += F("DEBUG: Autotune: deltaRelayBias ");
+tmpMess += String(deltaRelayBias,6);
+tmpMess += F(" relayBias ");
+tmpMess += String(relayBias,6);
+cmdMessenger.sendCmd(logger,tmpMess);
+#endif
             // reset relay step counter
             // to give the process value oscillation
             // time to settle with the new relay bias value
@@ -220,8 +239,7 @@ bool PID_ATune::Runtime()
     stepCount++;
     lastStepTime[0] = now;
     sumInputSinceLastStep[0] = 0.0;
-    
-#if defined (AUTOTUNE_DEBUG
+#if defined (AUTOTUNE_DEBUG)
     for (byte i = 1; i < (stepCount > 4 ? 5 : stepCount); i++)
     {
       Serial.print(F("step time "));
@@ -230,6 +248,18 @@ bool PID_ATune::Runtime()
       Serial.println(sumInputSinceLastStep[i]);
     }
 #endif
+#if defined (AUTOTUNE_PYCMD_INFO)
+for (byte i = 1; i < (stepCount > 4 ? 5 : stepCount); i++)
+{
+  String tmpMess="";
+  tmpMess += F("DEBUG: Autotune: step time ");
+  tmpMess += String(lastStepTime[i],6);
+  tmpMess += F(" step sum  ");
+  tmpMess += String(sumInputSinceLastStep[i],6);
+  cmdMessenger.sendCmd(logger,tmpMess);
+}
+
+#endif
 
 #endif // if defined AUTOTUNE_RELAY_BIAS
 
@@ -237,29 +267,29 @@ bool PID_ATune::Runtime()
 
   // set output
   // FIXME need to respect output limits
-  // not knowing output limits is one reason 
+  // not knowing output limits is one reason
   // to pass entire PID object to autotune method(s)
   if (((byte) state & (STEADY_STATE_AFTER_STEP_UP | RELAY_STEP_UP)) > 0)
   {
-    
-#if defined (AUTOTUNE_RELAY_BIAS)    
+
+#if defined (AUTOTUNE_RELAY_BIAS)
     *output = outputStart + workingOstep + relayBias;
-#else    
+#else
     *output = outputStart + workingOstep;
-#endif    
+#endif
 
   }
   else if (state == RELAY_STEP_DOWN)
   {
-    
-#if defined (AUTOTUNE_RELAY_BIAS)    
+
+#if defined (AUTOTUNE_RELAY_BIAS)
     *output = outputStart - workingOstep + relayBias;
 #else
     *output = outputStart - workingOstep;
 #endif
 
   }
-  
+
 #if defined (AUTOTUNE_DEBUG)
   Serial.print(F("refVal "));
   Serial.println(refVal);
@@ -269,6 +299,18 @@ bool PID_ATune::Runtime()
   Serial.println(*output);
   Serial.print(F("state "));
   Serial.println(state);
+#endif
+#if defined (AUTOTUNE_PYCMD_INFO)
+String tmpMess="";
+tmpMess += F("DEBUG: Autotune: refVal ");
+tmpMess += String(refVal,6);
+tmpMess += F(" setpoint ");
+tmpMess += String(setpoint,6);
+tmpMess += F(" output ");
+tmpMess += String(*output,6);
+tmpMess += F(" state ");
+tmpMess += String(state,6);
+cmdMessenger.sendCmd(logger,tmpMess);
 #endif
 
   // store initial inputs
@@ -292,21 +334,21 @@ bool PID_ATune::Runtime()
     {
       isMax = (refVal >= val);
     }
-    if (isMin) 
+    if (isMin)
     {
       isMin = (refVal <= val);
     }
     lastInputs[i + 1] = val;
   }
-  lastInputs[0] = refVal; 
+  lastInputs[0] = refVal;
 
   // for AMIGOf tuning rule, perform an initial
   // step change to calculate process gain K_process
   // this may be very slow for lag-dominated processes
-  // and may never terminate for integrating processes 
+  // and may never terminate for integrating processes
   if (((byte) state & (STEADY_STATE_AT_BASELINE | STEADY_STATE_AFTER_STEP_UP)) > 0)
   {
-    // check that all the recent inputs are 
+    // check that all the recent inputs are
     // equal give or take expected noise
     double iMax = lastInputs[0];
     double iMin = lastInputs[0];
@@ -323,32 +365,45 @@ bool PID_ATune::Runtime()
         iMin = val;
       }
       avgInput += val;
-    } 
+    }
     avgInput /= (double)(inputCount + 1);
-    
+
 #if defined (AUTOTUNE_DEBUG)
   Serial.print(F("iMax "));
   Serial.println(iMax);
   Serial.print(F("iMin "));
   Serial.println(iMin);
-  Serial.print(F("avgInput ")); 
-  Serial.println(avgInput); 
+  Serial.print(F("avgInput "));
+  Serial.println(avgInput);
   Serial.print(F("stable "));
   Serial.println((iMax - iMin) <= 2.0 * workingNoiseBand);
-#endif 
+#endif
+
+#if defined (AUTOTUNE_PYCMD_INFO)
+String tmpMess="";
+tmpMess += F("DEBUG: Autotune: iMax ");
+tmpMess += String(iMax,6);
+tmpMess += F(" iMin ");
+tmpMess += String(iMin,6);
+tmpMess += F(" avgInput ");
+tmpMess += String(avgInput,6);
+tmpMess += F(" stable ");
+tmpMess += String((iMax - iMin) <= 2.0 * workingNoiseBand,6);
+cmdMessenger.sendCmd(logger,tmpMess);
+#endif
 
     // if recent inputs are stable
     if ((iMax - iMin) <= 2.0 * workingNoiseBand)
     {
-      
-#if defined (AUTOTUNE_RELAY_BIAS)      
+
+#if defined (AUTOTUNE_RELAY_BIAS)
       lastStepTime[0] = now;
 #endif
 
       if (state == STEADY_STATE_AT_BASELINE)
       {
         state = STEADY_STATE_AFTER_STEP_UP;
-        lastPeaks[0] = avgInput;  
+        lastPeaks[0] = avgInput;
         inputCount = 0;
         return false;
       }
@@ -360,6 +415,12 @@ bool PID_ATune::Runtime()
       Serial.print(F("Process gain "));
       Serial.println(K_process);
 #endif
+#if defined (AUTOTUNE_PYCMD_INFO)
+String tmpMess="";
+tmpMess += F("DEBUG: Autotune: Process gain ");
+tmpMess += String(K_process,6);
+cmdMessenger.sendCmd(logger,tmpMess);
+#endif
 
       // bad estimate of process gain
       if (K_process < 1e-10) // zero
@@ -369,7 +430,7 @@ bool PID_ATune::Runtime()
       }
       state = RELAY_STEP_DOWN;
 
-#if defined (AUTOTUNE_RELAY_BIAS)      
+#if defined (AUTOTUNE_RELAY_BIAS)
       sumInputSinceLastStep[0] = 0.0;
 #endif
 
@@ -380,10 +441,10 @@ bool PID_ATune::Runtime()
       return false;
     }
   }
-  
-  // increment peak count 
-  // and record peak time 
-  // for both maxima and minima 
+
+  // increment peak count
+  // and record peak time
+  // for both maxima and minima
   justChanged = false;
   if (isMax)
   {
@@ -417,6 +478,19 @@ bool PID_ATune::Runtime()
     }
 #endif
 
+#if defined (AUTOTUNE_PYCMD_INFO)
+String tmpMess="";
+tmpMess += F("DEBUG: Autotune: peakCount ");
+tmpMess += String(peakCount,6);
+tmpMess += F(" peaks ");
+for (byte i = 0; i < (peakCount > 4 ? 5 : peakCount); i++)
+{
+  tmpMess += String(lastPeaks[i],6);
+}
+cmdMessenger.sendCmd(logger,tmpMess);
+#endif
+
+
     // shift peak time and peak value arrays
     for (byte i = (peakCount > 4 ? 4 : peakCount); i > 0; i--)
     {
@@ -449,6 +523,28 @@ bool PID_ATune::Runtime()
     }
     Serial.println();
 #endif
+#if defined (AUTOTUNE_PYCMD_INFO)
+String tmpMess="";
+tmpMess += F("DEBUG: Autotune: peakCount  ");
+tmpMess += String(peakCount,6);
+tmpMess += F(" refVal ");
+tmpMess += String(refVal,6);
+tmpMess += F(" peakType ");
+tmpMess += String(peakType,6);
+
+tmpMess += F(" isMin ");
+tmpMess += String(isMin,6);
+tmpMess += F(" isMax ");
+tmpMess += String(isMax,6);
+
+tmpMess += F(" lastInputs ");
+for (byte i = 0; i <= inputCount; i++)
+{
+  tmpMess += String(lastInputs[i]);
+}
+
+cmdMessenger.sendCmd(logger,tmpMess);
+#endif
 
   }
 
@@ -457,21 +553,21 @@ bool PID_ATune::Runtime()
   double inducedAmplitude = 0.0;
   double phaseLag;
   if (
-  
-#if defined (AUTOTUNE_RELAY_BIAS)  
+
+#if defined (AUTOTUNE_RELAY_BIAS)
     (stepCount > 4) &&
 #endif
 
-    justChanged && 
+    justChanged &&
     (peakCount > 4)
   )
-  { 
+  {
     double absMax = lastPeaks[1];
     double absMin = lastPeaks[1];
     for (byte i = 2; i <= 4; i++)
     {
       double val = lastPeaks[i];
-      inducedAmplitude += abs( val - lastPeaks[i - 1]); 
+      inducedAmplitude += abs( val - lastPeaks[i - 1]);
       if (absMax < val)
       {
          absMax = val;
@@ -493,9 +589,22 @@ bool PID_ATune::Runtime()
     Serial.print(F("convergence criterion "));
     Serial.println((0.5 * (absMax - absMin) - inducedAmplitude) / inducedAmplitude);
 #endif
-
+#if defined (AUTOTUNE_PYCMD_INFO)
+String tmpMess="";
+tmpMess += F("DEBUG: Autotune: peakCount  ");
+tmpMess += String(peakCount,6);
+tmpMess +=F("amplitude ");
+tmpMess += String(inducedAmplitude);
+tmpMess +=F("absMin ");
+tmpMess += String(absMin);
+tmpMess +=F("absMax ");
+tmpMess += String(absMax);
+tmpMess +=F("convergence criterion ");
+tmpMess += String((0.5 * (absMax - absMin) - inducedAmplitude) / inducedAmplitude);
+cmdMessenger.sendCmd(logger,tmpMess);
+#endif
     // source for AMIGOf PI auto tuning method:
-    // "Revisiting the Ziegler-Nichols tuning rules for PI control — 
+    // "Revisiting the Ziegler-Nichols tuning rules for PI control —
     //  Part II. The frequency response method."
     // T. Hägglund and K. J. Åström
     // Asian Journal of Control, Vol. 6, No. 4, pp. 469-482, December 2004
@@ -507,6 +616,13 @@ bool PID_ATune::Runtime()
 #if defined (AUTOTUNE_DEBUG) || defined (USE_SIMULATION)
       Serial.print(F("phase lag "));
       Serial.println(phaseLag / CONST_PI * 180.0);
+#endif
+
+#if defined (AUTOTUNE_PYCMD_INFO)
+String tmpMess="";
+tmpMess +=F("DEBUG: Autotune: phase lag ");
+tmpMess += String(phaseLag / CONST_PI * 180.0);
+cmdMessenger.sendCmd(logger,tmpMess);
 #endif
 
       // check that phase lag is within acceptable bounds, ideally between 120° and 140°
@@ -526,14 +642,20 @@ bool PID_ATune::Runtime()
         // relay bias having changed noiseBand
         // but this would essentially preclude using relay bias
         // with AMIGOf tuning, which is already a compile option
-        /* 
+        /*
         stepCount = 0;
         */
-#endif        
+#endif
 
 #if defined (AUTOTUNE_DEBUG) || defined (USE_SIMULATION)
         Serial.print(F("newWorkingNoiseBand "));
-        Serial.println(newWorkingNoiseBand);   
+        Serial.println(newWorkingNoiseBand);
+#endif
+#if defined (AUTOTUNE_PYCMD_INFO)
+String tmpMess="";
+tmpMess +=F("DEBUG: Autotune: newWorkingNoiseBand ");
+tmpMess += String(newWorkingNoiseBand);
+cmdMessenger.sendCmd(logger,tmpMess);
 #endif
 
         return false;
@@ -546,14 +668,14 @@ bool PID_ATune::Runtime()
       state = CONVERGED;
     }
   }
-    
+
   // if the autotune has not already converged
-  // terminate after 10 cycles 
+  // terminate after 10 cycles
   // or if too long between peaks
   // or if too long between relay steps
   if (
 
-#if defined (AUTOTUNE_RELAY_BIAS)  
+#if defined (AUTOTUNE_RELAY_BIAS)
     ((now - lastStepTime[0]) > (unsigned long) (AUTOTUNE_MAX_WAIT_MINUTES * 60000)) ||
 #endif
 
@@ -563,49 +685,70 @@ bool PID_ATune::Runtime()
   {
     state = FAILED;
   }
-  
+
   if (((byte) state & (CONVERGED | FAILED)) == 0)
   {
     return false;
   }
 
-  // autotune algorithm has terminated 
+  // autotune algorithm has terminated
   // reset autotuner variables
   *output = outputStart;
 
   if (state == FAILED)
   {
     // do not calculate gain parameters
-    
+
 #if defined (AUTOTUNE_DEBUG) || defined (USE_SIMULATION)
     Serial.println("failed");
+#endif
+
+#if defined (AUTOTUNE_PYCMD_INFO)
+tmpMess="";
+tmpMess +=F("ERROR: Autotune: FAILED ");
+cmdMessenger.sendCmd(logger,tmpMess);
 #endif
 
     return true;
   }
 
   // finish up by calculating tuning parameters
-  
+
   // calculate ultimate gain
-  double Ku = 4.0 * workingOstep / (inducedAmplitude * CONST_PI); 
+  double Ku = 4.0 * workingOstep / (inducedAmplitude * CONST_PI);
 
 #if defined (AUTOTUNE_DEBUG) || defined (USE_SIMULATION)
   Serial.print(F("ultimate gain "));
   Serial.println(1.0 / Ku);
   Serial.println(Ku);
 #endif
+#if defined (AUTOTUNE_PYCMD_INFO)
+tmpMess="";
+tmpMess +=F("ERROR: Autotune: ultimate gain ");
+tmpMess += String(1.0 / Ku);
+tmpMess += F(" Ku ");
+tmpMess += String(Ku);
+cmdMessenger.sendCmd(logger,tmpMess);
+#endif
 
   // calculate ultimate period in seconds
-  double Pu = (double) 0.5 * ((lastPeakTime[1] - lastPeakTime[3]) + (lastPeakTime[2] - lastPeakTime[4])) / 1000.0;  
-  
+  double Pu = (double) 0.5 * ((lastPeakTime[1] - lastPeakTime[3]) + (lastPeakTime[2] - lastPeakTime[4])) / 1000.0;
+
 #if defined (AUTOTUNE_DEBUG) || defined (USE_SIMULATION)
   Serial.print(F("ultimate period "));
   Serial.println(Pu);
-#endif 
+#endif
+#if defined (AUTOTUNE_PYCMD_INFO)
+tmpMess="";
+tmpMess +=F("ERROR: Autotune: ultimate period ");
+tmpMess += String(Pu);
+cmdMessenger.sendCmd(logger,tmpMess);
+#endif
+
 
   // calculate gain parameters using tuning rules
   // NB PID generally outperforms PI for lag-dominated processes
-    
+
   // AMIGOf is slow to tune, especially for lag-dominated processes, because it
   // requires an estimate of the process gain which is implemented in this
   // routine by steady state change in process variable after step change in set point
@@ -619,7 +762,13 @@ bool PID_ATune::Runtime()
   Serial.print(F("gain ratio kappa "));
   Serial.println(kappa_phi);
 #endif
-  
+#if defined (AUTOTUNE_PYCMD_INFO)
+tmpMess="";
+tmpMess +=F("ERROR: Autotune: gain ratio kappa ");
+tmpMess += String(kappa_phi);
+cmdMessenger.sendCmd(logger,tmpMess);
+#endif
+
     // calculate phase lag
     phaseLag = calculatePhaseLag(inducedAmplitude);
 
@@ -627,19 +776,26 @@ bool PID_ATune::Runtime()
   Serial.print(F("phase lag "));
   Serial.println(phaseLag / CONST_PI * 180.0);
 #endif
- 
+
+#if defined (AUTOTUNE_PYCMD_INFO)
+String tmpMess="";
+tmpMess +=F("ERROR: Autotune: phase lag ");
+tmpMess += String(phaseLag / CONST_PI * 180.0);
+cmdMessenger.sendCmd(logger,tmpMess);
+#endif
+
     // calculate tunings
     Kp = (( 2.50 - 0.92 * phaseLag) / (1.0 + (10.75 - 4.01 * phaseLag) * kappa_phi)) * Ku;
     Ti = ((-3.05 + 1.72 * phaseLag) / pow(1.0 + (-6.10 + 3.44 * phaseLag) * kappa_phi, 2)) * Pu;
     Td = 0.0;
-    
+
     // converged
     return true;
   }
 
   Kp = Ku / (double) tuningRule[controlType].divisor(KP_DIVISOR);
   Ti = Pu / (double) tuningRule[controlType].divisor(TI_DIVISOR);
-  Td = tuningRule[controlType].PI_controller() ? 
+  Td = tuningRule[controlType].PI_controller() ?
        0.0 : Pu / (double) tuningRule[controlType].divisor(TD_DIVISOR);
 
   // converged
@@ -651,10 +807,10 @@ double PID_ATune::processValueOffset(double avgStep1, double avgStep2)
 {
   // calculate offset of oscillation in process value
   // as a proportion of the amplitude
-  // approximation assumes a trapezoidal oscillation 
+  // approximation assumes a trapezoidal oscillation
   // that is stationary over the last 2 relay cycles
-  // needs constant phase lag, so recent changes to noiseBand are bad 
-      
+  // needs constant phase lag, so recent changes to noiseBand are bad
+
   if (avgStep1 < 1e-10)
   {
     return 1.0;
@@ -665,11 +821,18 @@ double PID_ATune::processValueOffset(double avgStep1, double avgStep2)
   }
   // ratio of step durations
   double r1 = avgStep1 / avgStep2;
-  
+
 #if defined (AUTOTUNE_DEBUG) || defined (USE_SIMULATION)
   Serial.print(F("r1 "));
   Serial.println(r1);
 #endif
+#if defined (AUTOTUNE_PYCMD_INFO)
+String tmpMess="";
+tmpMess +=F("ERROR: Autotune: r1 ");
+tmpMess += String(r1);
+cmdMessenger.sendCmd(logger,tmpMess);
+#endif
+
 
   double s1 = (sumInputSinceLastStep[1] + sumInputSinceLastStep[3]);
   double s2 = (sumInputSinceLastStep[2] + sumInputSinceLastStep[4]);
@@ -688,16 +851,22 @@ double PID_ATune::processValueOffset(double avgStep1, double avgStep2)
   Serial.print(F("r2 "));
   Serial.println(r2);
 #endif
+#if defined (AUTOTUNE_PYCMD_INFO)
+String tmpMess="";
+tmpMess +=F("ERROR: Autotune: r2 ");
+tmpMess += String(r2);
+cmdMessenger.sendCmd(logger,tmpMess);
+#endif
 
   // estimate process value offset assuming a trapezoidal response curve
   //
   // assume trapezoidal wave with amplitude a, cycle period t, time at minimum/maximum m * t (0 <= m <= 1)
-  // 
+  //
   // with no offset:
   // area under half wave of process value given by
   //   a * m * t/2 + a/2 * (1 - m) * t/2 = a * (1 + m) * t / 4
   //
-  // now with offset d * a (-1 <= d <= 1): 
+  // now with offset d * a (-1 <= d <= 1):
   // step time of relay half-cycle given by
   //   m * t/2 + (1 - d) * (1 - m) * t/2 = (1 - d + d * m) * t/2
   //
@@ -705,7 +874,7 @@ double PID_ATune::processValueOffset(double avgStep1, double avgStep2)
   // (1) r1 = (1 - d + d * m) / (1 + d - d * m)
   //
   // area under offset half wave = a * (1 - d) * m * t/2 + a/2 * (1 - d) * (1 - d) * (1 - m) * t/2
-  //                             = a * (1 - d) * (1 - d + m * (1 + d)) * t/4 
+  //                             = a * (1 - d) * (1 - d + m * (1 + d)) * t/4
   //
   // => ratio of area under offset half waves given by:
   // (2) r2 = (1 - d) * (1 - d + m * (1 + d)) / ((1 + d) * (1 + d + m * (1 - d)))
@@ -716,9 +885,9 @@ double PID_ATune::processValueOffset(double avgStep1, double avgStep2)
   // (3) m = 1 - (1 / d) * (1 - r1) / (1 + r1)
   //
   // substitute (3) into (2):
-  // r2 = ((1 - d) * (1 - d + 1 + d - (1 + d) / d * (1 - r1) / (1 + r1)) / ((1 + d) * (1 + d + 1 - d - (1 - d) / d * (1 - r1) / (1 + r1)))   
+  // r2 = ((1 - d) * (1 - d + 1 + d - (1 + d) / d * (1 - r1) / (1 + r1)) / ((1 + d) * (1 + d + 1 - d - (1 - d) / d * (1 - r1) / (1 + r1)))
   //
-  // after much algebra, we arrive at: 
+  // after much algebra, we arrive at:
   // (4) (r1 * r2 + 3 * r1 + 3 * r2 + 1) * d^2 - 2 * (1 + r1)(1 - r2) * d + (1 - r1) * (1 - r2) = 0
   //
   // quadratic solution to (4):
@@ -733,9 +902,9 @@ double PID_ATune::processValueOffset(double avgStep1, double avgStep2)
   }
 
   // return estimated process value offset
-  return ((1.0 + r1) * (1.0 - r2) + ((r1 > 1.0) ? 1.0 : -1.0) * sqrt(discriminant)) / 
+  return ((1.0 + r1) * (1.0 - r2) + ((r1 > 1.0) ? 1.0 : -1.0) * sqrt(discriminant)) /
          (r1 * r2 + 3.0 * r1 + 3.0 * r2 + 1.0);
-} 
+}
 #endif // if defined AUTOTUNE_RELAY_BIAS
 
 double PID_ATune::GetKp()
@@ -750,7 +919,7 @@ double PID_ATune::GetKi()
 
 double PID_ATune::GetKd()
 {
-  return Kp * Td; 
+  return Kp * Td;
 }
 
 void PID_ATune::SetOutputStep(double Step)
@@ -763,7 +932,7 @@ double PID_ATune::GetOutputStep()
   return oStep;
 }
 
-void PID_ATune::SetControlType(byte type) 
+void PID_ATune::SetControlType(byte type)
 {
   controlType = type;
 }
@@ -785,7 +954,7 @@ double PID_ATune::GetNoiseBand()
 
 void PID_ATune::SetLookbackSec(int value)
 {
-  if (value < 1) 
+  if (value < 1)
   {
     value = 1;
   }
